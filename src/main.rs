@@ -7,14 +7,14 @@ use std::time::{Duration, Instant};
 
 #[derive(Clone)]
 struct AppState {
-    cpu_percent: Arc<Mutex<f64>>,
+    cpu_percent: f64,
 }
 
 #[tokio::main]
 async fn main() {
-    let state = AppState {
-        cpu_percent: Arc::new(Mutex::new(0_f64)),
-    };
+    let state = Arc::new(Mutex::new(AppState {
+        cpu_percent: 0_f64,
+    }));
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/", get(root))
@@ -25,12 +25,13 @@ async fn main() {
 
     let cpus = num_cpus::get();
     for _ in 0..cpus {
-        let cpu_percent = state.clone().cpu_percent;
+        let state = state.clone();
         thread::spawn(move || {
             loop {
                 let run_time;
                 {
-                    run_time = 1000_f64 * (*cpu_percent.lock().unwrap() / 100_f64);
+                    let state = state.lock().unwrap();
+                    run_time = 1000_f64 * state.cpu_percent / 100_f64;
                 };
                 let now = Instant::now();
                 while now.elapsed().as_millis() < run_time as u128 {}
@@ -48,8 +49,9 @@ async fn main() {
         .unwrap();
 }
 
-async fn set_cpu_percent(Path(percent): Path<f64>, State(state): State<AppState>) -> String {
-    *state.cpu_percent.lock().unwrap() = percent;
+async fn set_cpu_percent(Path(percent): Path<f64>, State(state): State<Arc<Mutex<AppState>>>) -> String {
+    let mut state = state.lock().unwrap();
+    state.cpu_percent = percent;
     println!("Set cpu usage percentage to {}", percent);
     format!("Set cpu usage percentage to {}", percent)
 }
