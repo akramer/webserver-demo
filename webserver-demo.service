@@ -1,0 +1,8 @@
+[Unit]
+Description=webserver
+
+[Service]
+ExecStart=/home/akramer_google_com/webserver-demo/target/release/webserver-demo
+
+[Install]
+WantedBy=multi-user.target
