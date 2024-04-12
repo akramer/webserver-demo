@@ -1,4 +1,4 @@
-use axum::{extract::Path, extract::State, http::StatusCode, http::header::HeaderMap, routing::get, Router};
+use axum::{extract::ConnectInfo, extract::Path, extract::State, http::StatusCode, http::header::HeaderMap, routing::get, Router};
 //use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::*;
@@ -49,7 +49,7 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("listening on {}", addr);
     axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap();
 }
@@ -88,10 +88,11 @@ async fn healthcheck(
         (StatusCode::OK, "OK".to_string())
     }
 
-async fn root(headers: HeaderMap) -> String {
+async fn root(headers: HeaderMap, ConnectInfo(addr): ConnectInfo<SocketAddr>) -> String {
     format!(
-        "Hostname: {:?}\nHeaders:\n{:?}",
+        "Hostname: {:?}\nSource Address: {:?}\nHeaders:\n{:?}\n",
         nix::unistd::gethostname().unwrap(),
+        addr,
         headers
     )
 }
